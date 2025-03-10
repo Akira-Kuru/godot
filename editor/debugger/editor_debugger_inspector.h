@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef EDITOR_DEBUGGER_INSPECTOR_H
-#define EDITOR_DEBUGGER_INSPECTOR_H
+#pragma once
 
 #include "editor/editor_inspector.h"
 
@@ -48,7 +47,7 @@ public:
 	List<PropertyInfo> prop_list;
 	HashMap<StringName, Variant> prop_values;
 
-	ObjectID get_remote_object_id() { return remote_object_id; };
+	ObjectID get_remote_object_id() { return remote_object_id; }
 	String get_title();
 
 	Variant get_variant(const StringName &p_name);
@@ -90,8 +89,6 @@ public:
 
 	// Stack Dump variables
 	String get_stack_variable(const String &p_var);
-	void add_stack_variable(const Array &p_arr);
+	void add_stack_variable(const Array &p_arr, int p_offset = -1);
 	void clear_stack_variables();
 };
-
-#endif // EDITOR_DEBUGGER_INSPECTOR_H

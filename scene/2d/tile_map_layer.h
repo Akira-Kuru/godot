@@ -28,11 +28,11 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef TILE_MAP_LAYER_H
-#define TILE_MAP_LAYER_H
+#pragma once
 
 #include "scene/resources/2d/tile_set.h"
 
+class NavigationMeshSourceGeometryData2D;
 class TileSetAtlasSource;
 class TileMap;
 
@@ -321,6 +321,7 @@ private:
 	bool _runtime_update_needs_all_cells_cleaned_up = false;
 	void _clear_runtime_update_tile_data();
 	void _clear_runtime_update_tile_data_for_cell(CellData &r_cell_data);
+	void _update_cells_callback(bool p_force_cleanup);
 
 	// Per-system methods.
 #ifdef DEBUG_ENABLED
@@ -462,6 +463,7 @@ public:
 	void notify_runtime_tile_data_update();
 	GDVIRTUAL1R(bool, _use_tile_data_runtime_update, Vector2i);
 	GDVIRTUAL2(_tile_data_runtime_update, Vector2i, TileData *);
+	GDVIRTUAL2(_update_cells, TypedArray<Vector2i>, bool);
 
 	// --- Shortcuts to methods defined in TileSet ---
 	Vector2i map_pattern(const Vector2i &p_position_in_tilemap, const Vector2i &p_coords_in_pattern, Ref<TileMapPattern> p_pattern);
@@ -510,10 +512,16 @@ public:
 	void set_navigation_visibility_mode(DebugVisibilityMode p_show_navigation);
 	DebugVisibilityMode get_navigation_visibility_mode() const;
 
+private:
+	static Callable _navmesh_source_geometry_parsing_callback;
+	static RID _navmesh_source_geometry_parser;
+
+public:
+	static void navmesh_parse_init();
+	static void navmesh_parse_source_geometry(const Ref<NavigationPolygon> &p_navigation_mesh, Ref<NavigationMeshSourceGeometryData2D> p_source_geometry_data, Node *p_node);
+
 	TileMapLayer();
 	~TileMapLayer();
 };
 
 VARIANT_ENUM_CAST(TileMapLayer::DebugVisibilityMode);
-
-#endif // TILE_MAP_LAYER_H

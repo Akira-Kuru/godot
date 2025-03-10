@@ -30,16 +30,15 @@
 
 #include "editor_build_profile.h"
 
-#include "core/io/dir_access.h"
 #include "core/io/json.h"
 #include "editor/editor_file_system.h"
 #include "editor/editor_node.h"
 #include "editor/editor_paths.h"
-#include "editor/editor_property_name_processor.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_string_names.h"
 #include "editor/gui/editor_file_dialog.h"
 #include "editor/themes/editor_scale.h"
+#include "scene/gui/separator.h"
 
 const char *EditorBuildProfile::build_option_identifiers[BUILD_OPTION_MAX] = {
 	// This maps to SCons build options.
@@ -47,7 +46,7 @@ const char *EditorBuildProfile::build_option_identifiers[BUILD_OPTION_MAX] = {
 	"disable_2d_physics",
 	"disable_3d_physics",
 	"disable_navigation",
-	"openxr",
+	"disable_xr",
 	"rendering_device", // FIXME: there's no scons option to disable rendering device
 	"opengl3",
 	"vulkan",
@@ -83,7 +82,7 @@ const bool EditorBuildProfile::build_option_disable_values[BUILD_OPTION_MAX] = {
 	true, // PHYSICS_2D
 	true, // PHYSICS_3D
 	true, // NAVIGATION
-	false, // XR
+	true, // XR
 	false, // RENDERING_DEVICE
 	false, // OPENGL
 	false, // VULKAN

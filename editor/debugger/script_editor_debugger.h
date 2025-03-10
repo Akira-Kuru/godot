@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef SCRIPT_EDITOR_DEBUGGER_H
-#define SCRIPT_EDITOR_DEBUGGER_H
+#pragma once
 
 #include "core/object/script_language.h"
 #include "core/os/os.h"
@@ -56,6 +55,7 @@ class SceneDebuggerTree;
 class EditorDebuggerPlugin;
 class DebugAdapterProtocol;
 class DebugAdapterParser;
+class EditorExpressionEvaluator;
 
 class ScriptEditorDebugger : public MarginContainer {
 	GDCLASS(ScriptEditorDebugger, MarginContainer);
@@ -152,6 +152,7 @@ private:
 	EditorProfiler *profiler = nullptr;
 	EditorVisualProfiler *visual_profiler = nullptr;
 	EditorPerformanceProfiler *performance_profiler = nullptr;
+	EditorExpressionEvaluator *expression_evaluator = nullptr;
 
 	OS::ProcessID remote_pid = 0;
 	bool move_to_foreground = true;
@@ -195,6 +196,8 @@ private:
 
 	void _video_mem_request();
 	void _video_mem_export();
+
+	void _resources_reimported(const PackedStringArray &p_resources);
 
 	int _get_node_path_cache(const NodePath &p_path);
 
@@ -251,6 +254,8 @@ public:
 
 	void request_remote_tree();
 	const SceneDebuggerTree *get_remote_tree();
+
+	void request_remote_evaluate(const String &p_expression, int p_stack_frame);
 
 	void start(Ref<RemoteDebuggerPeer> p_peer);
 	void stop();
@@ -318,5 +323,3 @@ public:
 	ScriptEditorDebugger();
 	~ScriptEditorDebugger();
 };
-
-#endif // SCRIPT_EDITOR_DEBUGGER_H

@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef PRIMITIVE_MESHES_H
-#define PRIMITIVE_MESHES_H
+#pragma once
 
 #include "scene/resources/font.h"
 #include "scene/resources/mesh.h"
@@ -545,7 +544,7 @@ private:
 		ContourPoint(const Vector2 &p_pt, bool p_sharp) {
 			point = p_pt;
 			sharp = p_sharp;
-		};
+		}
 	};
 
 	struct ContourInfo {
@@ -691,5 +690,3 @@ public:
 };
 
 VARIANT_ENUM_CAST(RibbonTrailMesh::Shape)
-
-#endif // PRIMITIVE_MESHES_H

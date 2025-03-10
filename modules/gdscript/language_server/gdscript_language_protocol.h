@@ -28,14 +28,11 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef GDSCRIPT_LANGUAGE_PROTOCOL_H
-#define GDSCRIPT_LANGUAGE_PROTOCOL_H
+#pragma once
 
 #include "gdscript_text_document.h"
 #include "gdscript_workspace.h"
-#include "godot_lsp.h"
 
-#include "core/io/stream_peer.h"
 #include "core/io/stream_peer_tcp.h"
 #include "core/io/tcp_server.h"
 
@@ -117,5 +114,3 @@ public:
 
 	GDScriptLanguageProtocol();
 };
-
-#endif // GDSCRIPT_LANGUAGE_PROTOCOL_H

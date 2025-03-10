@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef VISIBLE_ON_SCREEN_NOTIFIER_2D_H
-#define VISIBLE_ON_SCREEN_NOTIFIER_2D_H
+#pragma once
 
 #include "scene/2d/node_2d.h"
 
@@ -54,10 +53,10 @@ protected:
 	static void _bind_methods();
 
 public:
-#ifdef TOOLS_ENABLED
+#ifdef DEBUG_ENABLED
 	virtual Rect2 _edit_get_rect() const override;
 	virtual bool _edit_use_rect() const override;
-#endif
+#endif // DEBUG_ENABLED
 
 	void set_rect(const Rect2 &p_rect);
 	Rect2 get_rect() const;
@@ -101,5 +100,3 @@ public:
 };
 
 VARIANT_ENUM_CAST(VisibleOnScreenEnabler2D::EnableMode);
-
-#endif // VISIBLE_ON_SCREEN_NOTIFIER_2D_H

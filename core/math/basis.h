@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef BASIS_H
-#define BASIS_H
+#pragma once
 
 #include "core/math/quaternion.h"
 #include "core/math/vector3.h"
@@ -223,7 +222,7 @@ struct [[nodiscard]] Basis {
 
 	static Basis looking_at(const Vector3 &p_target, const Vector3 &p_up = Vector3(0, 1, 0), bool p_use_model_front = false);
 
-	Basis(const Quaternion &p_quaternion) { set_quaternion(p_quaternion); };
+	Basis(const Quaternion &p_quaternion) { set_quaternion(p_quaternion); }
 	Basis(const Quaternion &p_quaternion, const Vector3 &p_scale) { set_quaternion_scale(p_quaternion, p_scale); }
 
 	Basis(const Vector3 &p_axis, real_t p_angle) { set_axis_angle(p_axis, p_angle); }
@@ -322,5 +321,3 @@ real_t Basis::determinant() const {
 			rows[1][0] * (rows[0][1] * rows[2][2] - rows[2][1] * rows[0][2]) +
 			rows[2][0] * (rows[0][1] * rows[1][2] - rows[1][1] * rows[0][2]);
 }
-
-#endif // BASIS_H

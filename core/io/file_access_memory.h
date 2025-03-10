@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef FILE_ACCESS_MEMORY_H
-#define FILE_ACCESS_MEMORY_H
+#pragma once
 
 #include "core/io/file_access.h"
 
@@ -61,7 +60,7 @@ public:
 
 	virtual Error resize(int64_t p_length) override { return ERR_UNAVAILABLE; }
 	virtual void flush() override;
-	virtual void store_buffer(const uint8_t *p_src, uint64_t p_length) override; ///< store an array of bytes
+	virtual bool store_buffer(const uint8_t *p_src, uint64_t p_length) override; ///< store an array of bytes
 
 	virtual bool file_exists(const String &p_name) override; ///< return true if a file exists
 
@@ -78,5 +77,3 @@ public:
 
 	FileAccessMemory() {}
 };
-
-#endif // FILE_ACCESS_MEMORY_H

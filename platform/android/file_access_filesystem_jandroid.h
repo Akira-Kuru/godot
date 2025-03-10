@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef FILE_ACCESS_FILESYSTEM_JANDROID_H
-#define FILE_ACCESS_FILESYSTEM_JANDROID_H
+#pragma once
 
 #include "java_godot_lib_jni.h"
 
@@ -84,7 +83,7 @@ public:
 	virtual Error get_error() const override; ///< get last error
 
 	virtual void flush() override;
-	virtual void store_buffer(const uint8_t *p_src, uint64_t p_length) override;
+	virtual bool store_buffer(const uint8_t *p_src, uint64_t p_length) override;
 
 	virtual bool file_exists(const String &p_path) override; ///< return true if a file exists
 
@@ -105,5 +104,3 @@ public:
 	FileAccessFilesystemJAndroid();
 	~FileAccessFilesystemJAndroid();
 };
-
-#endif // FILE_ACCESS_FILESYSTEM_JANDROID_H

@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef PROJECT_SETTINGS_EDITOR_H
-#define PROJECT_SETTINGS_EDITOR_H
+#pragma once
 
 #include "core/config/project_settings.h"
 #include "editor/action_map_editor.h"
@@ -41,7 +40,9 @@
 #include "editor/localization_editor.h"
 #include "editor/plugins/editor_plugin_settings.h"
 #include "editor/shader_globals_editor.h"
+#include "scene/gui/panel_container.h"
 #include "scene/gui/tab_container.h"
+#include "scene/gui/texture_rect.h"
 
 class FileSystemDock;
 
@@ -134,5 +135,3 @@ public:
 
 	ProjectSettingsEditor(EditorData *p_data);
 };
-
-#endif // PROJECT_SETTINGS_EDITOR_H

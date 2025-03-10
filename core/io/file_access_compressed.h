@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef FILE_ACCESS_COMPRESSED_H
-#define FILE_ACCESS_COMPRESSED_H
+#pragma once
 
 #include "core/io/compression.h"
 #include "core/io/file_access.h"
@@ -89,7 +88,7 @@ public:
 
 	virtual Error resize(int64_t p_length) override { return ERR_UNAVAILABLE; }
 	virtual void flush() override;
-	virtual void store_buffer(const uint8_t *p_src, uint64_t p_length) override;
+	virtual bool store_buffer(const uint8_t *p_src, uint64_t p_length) override;
 
 	virtual bool file_exists(const String &p_name) override; ///< return true if a file exists
 
@@ -107,5 +106,3 @@ public:
 	FileAccessCompressed() {}
 	virtual ~FileAccessCompressed();
 };
-
-#endif // FILE_ACCESS_COMPRESSED_H

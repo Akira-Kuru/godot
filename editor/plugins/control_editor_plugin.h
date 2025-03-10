@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef CONTROL_EDITOR_PLUGIN_H
-#define CONTROL_EDITOR_PLUGIN_H
+#pragma once
 
 #include "editor/editor_inspector.h"
 #include "editor/plugins/editor_plugin.h"
@@ -241,7 +240,7 @@ protected:
 	static ControlEditorToolbar *singleton;
 
 public:
-	bool is_anchors_mode_enabled() { return anchors_mode; };
+	bool is_anchors_mode_enabled() { return anchors_mode; }
 
 	static ControlEditorToolbar *get_singleton() { return singleton; }
 
@@ -255,9 +254,7 @@ class ControlEditorPlugin : public EditorPlugin {
 	ControlEditorToolbar *toolbar = nullptr;
 
 public:
-	virtual String get_name() const override { return "Control"; }
+	virtual String get_plugin_name() const override { return "Control"; }
 
 	ControlEditorPlugin();
 };
-
-#endif // CONTROL_EDITOR_PLUGIN_H

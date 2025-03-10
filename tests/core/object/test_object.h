@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef TEST_OBJECT_H
-#define TEST_OBJECT_H
+#pragma once
 
 #include "core/object/class_db.h"
 #include "core/object/object.h"
@@ -95,10 +94,10 @@ public:
 	}
 	bool property_can_revert(const StringName &p_name) const override {
 		return false;
-	};
+	}
 	bool property_get_revert(const StringName &p_name, Variant &r_ret) const override {
 		return false;
-	};
+	}
 	void get_method_list(List<MethodInfo> *p_list) const override {
 	}
 	bool has_method(const StringName &p_method) const override {
@@ -603,5 +602,3 @@ TEST_CASE("[Object] Destruction at the end of the call chain is safe") {
 }
 
 } // namespace TestObject
-
-#endif // TEST_OBJECT_H

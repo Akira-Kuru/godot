@@ -238,7 +238,7 @@ void PropertySelector::_update_search() {
 				continue;
 			}
 
-			String name = mi.name.get_slice(":", 0);
+			String name = mi.name.get_slicec(':', 0);
 			if (!script_methods && name.begins_with("_") && !(mi.flags & METHOD_FLAG_VIRTUAL)) {
 				continue;
 			}
@@ -258,9 +258,9 @@ void PropertySelector::_update_search() {
 			TreeItem *item = search_options->create_item(category ? category : root);
 
 			String desc;
-			if (mi.name.contains(":")) {
-				desc = mi.name.get_slice(":", 1) + " ";
-				mi.name = mi.name.get_slice(":", 0);
+			if (mi.name.contains_char(':')) {
+				desc = mi.name.get_slicec(':', 1) + " ";
+				mi.name = mi.name.get_slicec(':', 0);
 			} else if (mi.return_val.type != Variant::NIL) {
 				desc = Variant::get_type_name(mi.return_val.type);
 			} else {
@@ -278,9 +278,9 @@ void PropertySelector::_update_search() {
 
 				if (arg_itr->type == Variant::NIL) {
 					desc += ": Variant";
-				} else if (arg_itr->name.contains(":")) {
-					desc += vformat(": %s", arg_itr->name.get_slice(":", 1));
-					arg_itr->name = arg_itr->name.get_slice(":", 0);
+				} else if (arg_itr->name.contains_char(':')) {
+					desc += vformat(": %s", arg_itr->name.get_slicec(':', 1));
+					arg_itr->name = arg_itr->name.get_slicec(':', 0);
 				} else {
 					desc += vformat(": %s", Variant::get_type_name(arg_itr->type));
 				}

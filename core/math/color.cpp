@@ -439,7 +439,7 @@ int Color::find_named_color(const String &p_name) {
 }
 
 int Color::get_named_color_count() {
-	return sizeof(named_colors) / sizeof(NamedColor);
+	return std::size(named_colors);
 }
 
 String Color::get_named_color_name(int p_idx) {
@@ -480,6 +480,10 @@ Color Color::from_rgbe9995(uint32_t p_rgbe) {
 	float bd = b * m;
 
 	return Color(rd, gd, bd, 1.0f);
+}
+
+Color Color::from_rgba8(int64_t p_r8, int64_t p_g8, int64_t p_b8, int64_t p_a8) {
+	return Color(p_r8 / 255.0f, p_g8 / 255.0f, p_b8 / 255.0f, p_a8 / 255.0f);
 }
 
 Color::operator String() const {

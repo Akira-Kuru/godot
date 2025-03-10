@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef SCRIPT_TEXT_EDITOR_H
-#define SCRIPT_TEXT_EDITOR_H
+#pragma once
 
 #include "script_editor_plugin.h"
 
@@ -85,7 +84,7 @@ class ScriptTextEditor : public ScriptEditorBase {
 	PopupMenu *highlighter_menu = nullptr;
 	PopupMenu *context_menu = nullptr;
 
-	GotoLineDialog *goto_line_dialog = nullptr;
+	GotoLinePopup *goto_line_popup = nullptr;
 	ScriptEditorQuickOpen *quick_open = nullptr;
 	ConnectionInfoDialog *connection_info_dialog = nullptr;
 
@@ -157,6 +156,7 @@ class ScriptTextEditor : public ScriptEditorBase {
 		DEBUG_GOTO_PREV_BREAKPOINT,
 		HELP_CONTEXTUAL,
 		LOOKUP_SYMBOL,
+		EDIT_EMOJI_AND_SYMBOL,
 	};
 
 	void _enable_code_editor();
@@ -199,6 +199,8 @@ protected:
 	void _goto_line(int p_line) { goto_line(p_line); }
 	void _lookup_symbol(const String &p_symbol, int p_row, int p_column);
 	void _validate_symbol(const String &p_symbol);
+
+	void _show_symbol_tooltip(const String &p_symbol, int p_row, int p_column);
 
 	void _convert_case(CodeTextEditor::CaseStyle p_case);
 
@@ -271,5 +273,3 @@ public:
 	ScriptTextEditor();
 	~ScriptTextEditor();
 };
-
-#endif // SCRIPT_TEXT_EDITOR_H

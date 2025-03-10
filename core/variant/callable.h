@@ -28,12 +28,10 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef CALLABLE_H
-#define CALLABLE_H
+#pragma once
 
 #include "core/object/object_id.h"
 #include "core/string/string_name.h"
-#include "core/templates/list.h"
 
 class Object;
 class Variant;
@@ -111,8 +109,9 @@ public:
 	CallableCustom *get_custom() const;
 	int get_argument_count(bool *r_is_valid = nullptr) const;
 	int get_bound_arguments_count() const;
-	void get_bound_arguments_ref(Vector<Variant> &r_arguments, int &r_argcount) const; // Internal engine use, the exposed one is below.
+	void get_bound_arguments_ref(Vector<Variant> &r_arguments) const; // Internal engine use, the exposed one is below.
 	Array get_bound_arguments() const;
+	int get_unbound_arguments_count() const;
 
 	uint32_t hash() const;
 
@@ -158,7 +157,8 @@ public:
 	virtual const Callable *get_base_comparator() const;
 	virtual int get_argument_count(bool &r_is_valid) const;
 	virtual int get_bound_arguments_count() const;
-	virtual void get_bound_arguments(Vector<Variant> &r_arguments, int &r_argcount) const;
+	virtual void get_bound_arguments(Vector<Variant> &r_arguments) const;
+	virtual int get_unbound_arguments_count() const;
 
 	CallableCustom();
 	virtual ~CallableCustom() {}
@@ -205,5 +205,3 @@ struct CallableComparator {
 
 	bool operator()(const Variant &p_l, const Variant &p_r) const;
 };
-
-#endif // CALLABLE_H

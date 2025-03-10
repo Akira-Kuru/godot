@@ -28,15 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef ENGINE_DEBUGGER_H
-#define ENGINE_DEBUGGER_H
+#pragma once
 
 #include "core/string/string_name.h"
 #include "core/string/ustring.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/vector.h"
 #include "core/variant/array.h"
-#include "core/variant/variant.h"
 
 class RemoteDebuggerPeer;
 class ScriptDebugger;
@@ -106,7 +104,7 @@ public:
 	_FORCE_INLINE_ static EngineDebugger *get_singleton() { return singleton; }
 	_FORCE_INLINE_ static bool is_active() { return singleton != nullptr && script_debugger != nullptr; }
 
-	_FORCE_INLINE_ static ScriptDebugger *get_script_debugger() { return script_debugger; };
+	_FORCE_INLINE_ static ScriptDebugger *get_script_debugger() { return script_debugger; }
 
 	static void initialize(const String &p_uri, bool p_skip_breakpoints, const Vector<String> &p_breakpoints, void (*p_allow_focus_steal_fn)());
 	static void deinitialize();
@@ -141,5 +139,3 @@ public:
 
 	virtual ~EngineDebugger();
 };
-
-#endif // ENGINE_DEBUGGER_H

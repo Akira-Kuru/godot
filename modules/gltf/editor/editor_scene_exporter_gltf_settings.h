@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef EDITOR_SCENE_EXPORTER_GLTF_SETTINGS_H
-#define EDITOR_SCENE_EXPORTER_GLTF_SETTINGS_H
+#pragma once
 
 #ifdef TOOLS_ENABLED
 
@@ -55,7 +54,7 @@ protected:
 	bool _get_extension_setting(const String &p_name_str, Variant &r_ret) const;
 
 public:
-	void generate_property_list(Ref<GLTFDocument> p_document);
+	void generate_property_list(Ref<GLTFDocument> p_document, Node *p_root = nullptr);
 
 	String get_copyright() const;
 	void set_copyright(const String &p_copyright);
@@ -65,5 +64,3 @@ public:
 };
 
 #endif // TOOLS_ENABLED
-
-#endif // EDITOR_SCENE_EXPORTER_GLTF_SETTINGS_H

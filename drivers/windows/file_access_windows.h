@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef FILE_ACCESS_WINDOWS_H
-#define FILE_ACCESS_WINDOWS_H
+#pragma once
 
 #ifdef WINDOWS_ENABLED
 
@@ -41,7 +40,7 @@
 class FileAccessWindows : public FileAccess {
 	FILE *f = nullptr;
 	int flags = 0;
-	void check_errors() const;
+	void check_errors(bool p_write = false) const;
 	mutable int prev_op = 0;
 	mutable Error last_error = OK;
 	String path;
@@ -75,7 +74,7 @@ public:
 
 	virtual Error resize(int64_t p_length) override;
 	virtual void flush() override;
-	virtual void store_buffer(const uint8_t *p_src, uint64_t p_length) override; ///< store an array of bytes
+	virtual bool store_buffer(const uint8_t *p_src, uint64_t p_length) override; ///< store an array of bytes
 
 	virtual bool file_exists(const String &p_name) override; ///< return true if a file exists
 
@@ -98,5 +97,3 @@ public:
 };
 
 #endif // WINDOWS_ENABLED
-
-#endif // FILE_ACCESS_WINDOWS_H

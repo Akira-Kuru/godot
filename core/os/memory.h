@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef MEMORY_H
-#define MEMORY_H
+#pragma once
 
 #include "core/error/error_macros.h"
 #include "core/templates/safe_refcount.h"
@@ -122,10 +121,10 @@ _ALWAYS_INLINE_ T *_post_initialize(T *p_obj) {
 	return p_obj;
 }
 
-#define memnew(m_class) _post_initialize(new ("") m_class)
+#define memnew(m_class) _post_initialize(::new ("") m_class)
 
-#define memnew_allocator(m_class, m_allocator) _post_initialize(new (m_allocator::alloc) m_class)
-#define memnew_placement(m_placement, m_class) _post_initialize(new (m_placement) m_class)
+#define memnew_allocator(m_class, m_allocator) _post_initialize(::new (m_allocator::alloc) m_class)
+#define memnew_placement(m_placement, m_class) _post_initialize(::new (m_placement) m_class)
 
 _ALWAYS_INLINE_ bool predelete_handler(void *) {
 	return true;
@@ -189,7 +188,7 @@ T *memnew_arr_template(size_t p_elements) {
 
 		/* call operator new */
 		for (size_t i = 0; i < p_elements; i++) {
-			new (&elems[i]) T;
+			::new (&elems[i]) T;
 		}
 	}
 
@@ -244,5 +243,3 @@ public:
 	_FORCE_INLINE_ T *new_allocation(const Args &&...p_args) { return memnew(T(p_args...)); }
 	_FORCE_INLINE_ void delete_allocation(T *p_allocation) { memdelete(p_allocation); }
 };
-
-#endif // MEMORY_H

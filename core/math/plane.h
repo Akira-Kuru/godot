@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef PLANE_H
-#define PLANE_H
+#pragma once
 
 #include "core/math/vector3.h"
 
@@ -40,7 +39,7 @@ struct [[nodiscard]] Plane {
 	real_t d = 0;
 
 	void set_normal(const Vector3 &p_normal);
-	_FORCE_INLINE_ Vector3 get_normal() const { return normal; };
+	_FORCE_INLINE_ Vector3 get_normal() const { return normal; }
 
 	void normalize();
 	Plane normalized() const;
@@ -132,5 +131,3 @@ bool Plane::operator==(const Plane &p_plane) const {
 bool Plane::operator!=(const Plane &p_plane) const {
 	return normal != p_plane.normal || d != p_plane.d;
 }
-
-#endif // PLANE_H
