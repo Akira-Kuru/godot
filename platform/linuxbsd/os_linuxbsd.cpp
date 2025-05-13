@@ -68,15 +68,14 @@
 #endif
 
 #include <dlfcn.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <cstdio>
+#include <cstdlib>
 
-#ifdef HAVE_MNTENT
+#if __has_include(<mntent.h>)
 #include <mntent.h>
 #endif
 
@@ -173,7 +172,7 @@ String OS_LinuxBSD::get_unique_id() const {
 		memset(buf, 0, sizeof(buf));
 		size_t len = sizeof(buf) - 1;
 		if (sysctl(mib, 2, buf, &len, 0x0, 0) != -1) {
-			machine_id = String::utf8(buf).replace("-", "");
+			machine_id = String::utf8(buf).remove_char('-');
 		}
 #else
 		Ref<FileAccess> f = FileAccess::open("/etc/machine-id", FileAccess::READ);
@@ -999,7 +998,7 @@ static String get_mountpoint(const String &p_path) {
 		return "";
 	}
 
-#ifdef HAVE_MNTENT
+#if __has_include(<mntent.h>)
 	dev_t dev = s.st_dev;
 	FILE *fd = setmntent("/proc/mounts", "r");
 	if (!fd) {

@@ -33,6 +33,7 @@
 #include "core/input/input.h"
 #include "core/io/marshalls.h"
 #include "editor/editor_file_system.h"
+#include "editor/editor_node.h"
 #include "editor/editor_properties.h"
 #include "editor/editor_properties_vector.h"
 #include "editor/editor_settings.h"
@@ -91,9 +92,6 @@ void EditorPropertyArrayObject::set_array(const Variant &p_array) {
 
 Variant EditorPropertyArrayObject::get_array() {
 	return array;
-}
-
-EditorPropertyArrayObject::EditorPropertyArrayObject() {
 }
 
 ///////////////////
@@ -232,9 +230,6 @@ String EditorPropertyDictionaryObject::get_label_for_index(int p_index) {
 	}
 }
 
-EditorPropertyDictionaryObject::EditorPropertyDictionaryObject() {
-}
-
 ///////////////////// ARRAY ///////////////////////////
 
 void EditorPropertyArray::initialize_array(Variant &p_array) {
@@ -310,6 +305,7 @@ void EditorPropertyArray::_create_new_property_slot() {
 	HBoxContainer *hbox = memnew(HBoxContainer);
 
 	Button *reorder_button = memnew(Button);
+	reorder_button->set_accessibility_name(TTRC("Reorder"));
 	reorder_button->set_button_icon(get_editor_theme_icon(SNAME("TripleBar")));
 	reorder_button->set_default_cursor_shape(Control::CURSOR_MOVE);
 	reorder_button->set_disabled(is_read_only());
@@ -325,12 +321,14 @@ void EditorPropertyArray::_create_new_property_slot() {
 
 	if (is_untyped_array) {
 		Button *edit_btn = memnew(Button);
+		edit_btn->set_accessibility_name(TTRC("Edit"));
 		edit_btn->set_button_icon(get_editor_theme_icon(SNAME("Edit")));
 		edit_btn->set_disabled(is_read_only());
 		edit_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyArray::_change_type).bind(edit_btn, idx));
 		hbox->add_child(edit_btn);
 	} else {
 		Button *remove_btn = memnew(Button);
+		remove_btn->set_accessibility_name(TTRC("Remove"));
 		remove_btn->set_button_icon(get_editor_theme_icon(SNAME("Remove")));
 		remove_btn->set_disabled(is_read_only());
 		remove_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyArray::_remove_pressed).bind(idx));
@@ -401,7 +399,7 @@ void EditorPropertyArray::update_property() {
 	}
 
 	if (preview_value) {
-		String ctr_str = array.get_construct_string().trim_prefix(array_type_name + "(").trim_suffix(")").replace("\n", "");
+		String ctr_str = array.get_construct_string().trim_prefix(array_type_name + "(").trim_suffix(")").remove_char('\n');
 		if (array_type == Variant::ARRAY && subtype != Variant::NIL) {
 			int type_end = ctr_str.find("](");
 			if (type_end > 0) {
@@ -449,6 +447,7 @@ void EditorPropertyArray::update_property() {
 			size_slider->set_editing_integer(true);
 			size_slider->set_h_size_flags(SIZE_EXPAND_FILL);
 			size_slider->set_read_only(is_read_only());
+			size_slider->set_accessibility_name(TTRC("Size"));
 			size_slider->connect(SceneStringName(value_changed), callable_mp(this, &EditorPropertyArray::_length_changed));
 			hbox->add_child(size_slider);
 
@@ -459,7 +458,10 @@ void EditorPropertyArray::update_property() {
 			button_add_item = EditorInspector::create_inspector_action_button(TTR("Add Element"));
 			button_add_item->set_button_icon(get_editor_theme_icon(SNAME("Add")));
 			button_add_item->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyArray::_add_element));
+			button_add_item->connect(SceneStringName(draw), callable_mp(this, &EditorPropertyArray::_button_add_item_draw));
+			SET_DRAG_FORWARDING_CD(button_add_item, EditorPropertyArray);
 			button_add_item->set_disabled(is_read_only());
+			button_add_item->set_accessibility_name(TTRC("Add"));
 			vbox->add_child(button_add_item);
 
 			paginator = memnew(EditorPaginator);
@@ -550,6 +552,13 @@ void EditorPropertyArray::_button_draw() {
 	}
 }
 
+void EditorPropertyArray::_button_add_item_draw() {
+	if (dropping) {
+		Color color = get_theme_color(SNAME("accent_color"), EditorStringName(Editor));
+		button_add_item->draw_rect(Rect2(Point2(), button_add_item->get_size()), color, false);
+	}
+}
+
 bool EditorPropertyArray::_is_drop_valid(const Dictionary &p_drag_data) const {
 	if (is_read_only()) {
 		return false;
@@ -570,11 +579,18 @@ bool EditorPropertyArray::_is_drop_valid(const Dictionary &p_drag_data) const {
 		PackedStringArray files = drag_data["files"];
 
 		for (const String &file : files) {
-			const String ftype = EditorFileSystem::get_singleton()->get_file_type(file);
-			for (String at : allowed_type.split(",")) {
+			int idx_in_dir;
+			EditorFileSystemDirectory const *dir = EditorFileSystem::get_singleton()->find_file(file, &idx_in_dir);
+			if (!dir) {
+				return false;
+			}
+			StringName ftype = dir->get_file_type(idx_in_dir);
+			String script_class = dir->get_file_resource_script_class(idx_in_dir);
+
+			for (String at : allowed_type.split(",", false)) {
 				at = at.strip_edges();
 				// Fail if one of the files is not of allowed type.
-				if (!ClassDB::is_parent_class(ftype, at)) {
+				if (!ClassDB::is_parent_class(ftype, at) && !EditorNode::get_editor_data().script_class_is_parent(script_class, at)) {
 					return false;
 				}
 			}
@@ -582,6 +598,28 @@ bool EditorPropertyArray::_is_drop_valid(const Dictionary &p_drag_data) const {
 
 		// If no files fail, drop is valid.
 		return true;
+	}
+
+	if (drop_type == "resource") {
+		Ref<Resource> res = drag_data["resource"];
+		if (res.is_null()) {
+			return false;
+		}
+
+		String res_type = res->get_class();
+		StringName script_class;
+		if (res->get_script()) {
+			script_class = EditorNode::get_singleton()->get_object_custom_type_name(res->get_script());
+		}
+
+		for (String at : allowed_type.split(",", false)) {
+			at = at.strip_edges();
+			if (ClassDB::is_parent_class(res_type, at) || EditorNode::get_editor_data().script_class_is_parent(script_class, at)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	if (drop_type == "nodes") {
@@ -592,7 +630,7 @@ bool EditorPropertyArray::_is_drop_valid(const Dictionary &p_drag_data) const {
 			if (subtype_hint_string == "NodePath") {
 				return true;
 			} else {
-				for (String ast : subtype_hint_string.split(",")) {
+				for (String ast : subtype_hint_string.split(",", false)) {
 					ast = ast.strip_edges();
 					allowed_subtype_array.append(ast);
 				}
@@ -606,7 +644,8 @@ bool EditorPropertyArray::_is_drop_valid(const Dictionary &p_drag_data) const {
 			ERR_FAIL_NULL_V_MSG(dropped_node, false, "Could not get the dropped node by its path.");
 
 			if (allowed_type != "NodePath") {
-				if (!ClassDB::is_parent_class(dropped_node->get_class_name(), allowed_type)) {
+				if (!ClassDB::is_parent_class(dropped_node->get_class_name(), allowed_type) &&
+						!EditorNode::get_singleton()->is_object_of_custom_type(dropped_node, allowed_type)) {
 					// Fail if one of the nodes is not of allowed type.
 					return false;
 				}
@@ -617,7 +656,8 @@ bool EditorPropertyArray::_is_drop_valid(const Dictionary &p_drag_data) const {
 				if (!allowed_subtype_array.has(dropped_node->get_class_name())) {
 					// The dropped node type was not found in the allowed subtype array, we must check if it inherits one of them.
 					for (const String &ast : allowed_subtype_array) {
-						if (ClassDB::is_parent_class(dropped_node->get_class_name(), ast)) {
+						if (ClassDB::is_parent_class(dropped_node->get_class_name(), ast) ||
+								EditorNode::get_singleton()->is_object_of_custom_type(dropped_node, ast)) {
 							is_drop_allowed = true;
 							break;
 						} else {
@@ -669,6 +709,16 @@ void EditorPropertyArray::drop_data_fw(const Point2 &p_point, const Variant &p_d
 		emit_changed(get_edited_property(), array);
 	}
 
+	if (drop_type == "resource") {
+		Ref<Resource> res = drag_data["resource"];
+
+		if (res.is_valid()) {
+			array.call("push_back", res);
+
+			emit_changed(get_edited_property(), array);
+		}
+	}
+
 	if (drop_type == "nodes") {
 		Array node_paths = drag_data["nodes"];
 		Node *base_node = get_base_node();
@@ -699,8 +749,7 @@ Node *EditorPropertyArray::get_base_node() {
 
 void EditorPropertyArray::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_THEME_CHANGED:
-		case NOTIFICATION_ENTER_TREE: {
+		case NOTIFICATION_THEME_CHANGED: {
 			change_type->clear();
 			change_type->add_icon_item(get_editor_theme_icon(SNAME("Remove")), TTR("Remove Item"), Variant::VARIANT_MAX);
 			change_type->add_separator();
@@ -724,6 +773,9 @@ void EditorPropertyArray::_notification(int p_what) {
 				if (_is_drop_valid(get_viewport()->gui_get_drag_data())) {
 					dropping = true;
 					edit->queue_redraw();
+					if (button_add_item) {
+						button_add_item->queue_redraw();
+					}
 				}
 			}
 		} break;
@@ -732,6 +784,9 @@ void EditorPropertyArray::_notification(int p_what) {
 			if (dropping) {
 				dropping = false;
 				edit->queue_redraw();
+				if (button_add_item) {
+					button_add_item->queue_redraw();
+				}
 			}
 		} break;
 	}
@@ -809,6 +864,14 @@ void EditorPropertyArray::setup(Variant::Type p_array_type, const String &p_hint
 
 			subtype_hint_string = p_hint_string.substr(hint_subtype_separator + 1);
 			subtype = Variant::Type(subtype_string.to_int());
+		} else {
+			subtype = Variant::get_type_by_name(p_hint_string);
+
+			if (subtype == Variant::VARIANT_MAX) {
+				subtype = Variant::OBJECT;
+				subtype_hint = PROPERTY_HINT_RESOURCE_TYPE;
+				subtype_hint_string = p_hint_string;
+			}
 		}
 	}
 }
@@ -834,7 +897,7 @@ void EditorPropertyArray::_reorder_button_gui_input(const Ref<InputEvent> &p_eve
 		}
 
 		float required_y_distance = 20.0f * EDSCALE;
-		if (ABS(reorder_mouse_y_delta) > required_y_distance) {
+		if (Math::abs(reorder_mouse_y_delta) > required_y_distance) {
 			int direction = reorder_mouse_y_delta > 0.0f ? 1 : -1;
 			reorder_mouse_y_delta -= required_y_distance * direction;
 
@@ -846,8 +909,12 @@ void EditorPropertyArray::_reorder_button_gui_input(const Ref<InputEvent> &p_eve
 				// Automatically move to the next/previous page.
 				_page_changed(page_index + direction);
 			}
-			// Ensure the moving element is visible.
-			InspectorDock::get_inspector_singleton()->ensure_control_visible(reorder_slot.container);
+			// Ensure the moving element is visible in the root inspector.
+			EditorInspector *parent_inspector = get_parent_inspector();
+			if (parent_inspector) {
+				// Defer to prevent moving elements from not displaying properly, especially near borders.
+				callable_mp((ScrollContainer *)parent_inspector->get_root_inspector(), &ScrollContainer::ensure_control_visible).call_deferred(reorder_slot.container);
+			}
 		}
 	}
 }
@@ -900,6 +967,7 @@ EditorPropertyArray::EditorPropertyArray() {
 	page_length = int(EDITOR_GET("interface/inspector/max_array_dictionary_items_per_page"));
 
 	edit = memnew(Button);
+	edit->set_accessibility_name(TTRC("Edit"));
 	edit->set_h_size_flags(SIZE_EXPAND_FILL);
 	edit->set_clip_text(true);
 	edit->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyArray::_edit_pressed));
@@ -1013,12 +1081,14 @@ void EditorPropertyDictionary::_create_new_property_slot(int p_idx) {
 
 	if (is_untyped_dict) {
 		Button *edit_btn = memnew(Button);
+		edit_btn->set_accessibility_name(TTRC("Edit"));
 		edit_btn->set_button_icon(get_editor_theme_icon(SNAME("Edit")));
 		edit_btn->set_disabled(is_read_only());
 		edit_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyDictionary::_change_type).bind(edit_btn, slots.size()));
 		hbox->add_child(edit_btn);
 	} else if (p_idx >= 0) {
 		Button *remove_btn = memnew(Button);
+		remove_btn->set_accessibility_name(TTRC("Remove"));
 		remove_btn->set_button_icon(get_editor_theme_icon(SNAME("Remove")));
 		remove_btn->set_disabled(is_read_only());
 		remove_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyDictionary::_remove_pressed).bind(slots.size()));
@@ -1092,12 +1162,21 @@ void EditorPropertyDictionary::setup(PropertyHint p_hint, const String &p_hint_s
 
 			key_subtype_hint_string = key.substr(hint_key_subtype_separator + 1);
 			key_subtype = Variant::Type(key_subtype_string.to_int());
+		} else {
+			key_subtype = Variant::get_type_by_name(key);
 
-			Variant new_key = object->get_new_item_key();
-			VariantInternal::initialize(&new_key, key_subtype);
-			object->set_new_item_key(new_key);
+			if (key_subtype == Variant::VARIANT_MAX) {
+				key_subtype = Variant::OBJECT;
+				key_subtype_hint = PROPERTY_HINT_RESOURCE_TYPE;
+				key_subtype_hint_string = key;
+			}
 		}
+
+		Variant new_key = object->get_new_item_key();
+		VariantInternal::initialize(&new_key, key_subtype);
+		object->set_new_item_key(new_key);
 	}
+
 	if (types.size() > 1 && !types[1].is_empty()) {
 		String value = types[1];
 		int hint_value_subtype_separator = value.find_char(':');
@@ -1111,11 +1190,19 @@ void EditorPropertyDictionary::setup(PropertyHint p_hint, const String &p_hint_s
 
 			value_subtype_hint_string = value.substr(hint_value_subtype_separator + 1);
 			value_subtype = Variant::Type(value_subtype_string.to_int());
+		} else {
+			value_subtype = Variant::get_type_by_name(value);
 
-			Variant new_value = object->get_new_item_value();
-			VariantInternal::initialize(&new_value, value_subtype);
-			object->set_new_item_value(new_value);
+			if (value_subtype == Variant::VARIANT_MAX) {
+				value_subtype = Variant::OBJECT;
+				value_subtype_hint = PROPERTY_HINT_RESOURCE_TYPE;
+				value_subtype_hint_string = value;
+			}
 		}
+
+		Variant new_value = object->get_new_item_value();
+		VariantInternal::initialize(&new_value, value_subtype);
+		object->set_new_item_value(new_value);
 	}
 }
 
@@ -1174,7 +1261,7 @@ void EditorPropertyDictionary::update_property() {
 	object->set_dict(updated_val);
 
 	if (preview_value) {
-		String ctr_str = updated_val.get_construct_string().replace("\n", "");
+		String ctr_str = updated_val.get_construct_string().remove_char('\n');
 		if (key_subtype != Variant::NIL || value_subtype != Variant::NIL) {
 			int type_end = ctr_str.find("](");
 			if (type_end > 0) {
@@ -1233,6 +1320,7 @@ void EditorPropertyDictionary::update_property() {
 			button_add_item = EditorInspector::create_inspector_action_button(TTR("Add Key/Value Pair"));
 			button_add_item->set_button_icon(get_theme_icon(SNAME("Add"), EditorStringName(EditorIcons)));
 			button_add_item->set_disabled(is_read_only());
+			button_add_item->set_accessibility_name(TTRC("Add"));
 			button_add_item->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyDictionary::_add_key_value));
 			add_vbox->add_child(button_add_item);
 		}
@@ -1296,7 +1384,14 @@ void EditorPropertyDictionary::update_property() {
 
 			Variant value;
 			object->get_by_property_name(slot.prop_name, value);
-			Variant::Type value_type = value.get_type();
+
+			Variant::Type value_type;
+
+			if (dict.is_typed_value() && value_subtype != Variant::NIL && slot.prop_key) {
+				value_type = value_subtype;
+			} else {
+				value_type = value.get_type();
+			}
 
 			// Check if the editor property needs to be updated.
 			bool value_as_id = Object::cast_to<EncodedObjectAsID>(value);
@@ -1369,8 +1464,7 @@ void EditorPropertyDictionary::_object_id_selected(const StringName &p_property,
 
 void EditorPropertyDictionary::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_THEME_CHANGED:
-		case NOTIFICATION_ENTER_TREE: {
+		case NOTIFICATION_THEME_CHANGED: {
 			change_type->clear();
 			change_type->add_icon_item(get_editor_theme_icon(SNAME("Remove")), TTR("Remove Item"), Variant::VARIANT_MAX);
 			change_type->add_separator();
@@ -1427,6 +1521,7 @@ EditorPropertyDictionary::EditorPropertyDictionary() {
 	page_length = int(EDITOR_GET("interface/inspector/max_array_dictionary_items_per_page"));
 
 	edit = memnew(Button);
+	edit->set_accessibility_name(TTRC("Edit"));
 	edit->set_h_size_flags(SIZE_EXPAND_FILL);
 	edit->set_clip_text(true);
 	edit->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyDictionary::_edit_pressed));
@@ -1582,6 +1677,7 @@ void EditorPropertyLocalizableString::update_property() {
 			hbox->add_child(prop);
 			prop->set_h_size_flags(SIZE_EXPAND_FILL);
 			Button *edit_btn = memnew(Button);
+			edit_btn->set_accessibility_name(TTRC("Remove Translation"));
 			edit_btn->set_button_icon(get_editor_theme_icon(SNAME("Remove")));
 			hbox->add_child(edit_btn);
 			edit_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyLocalizableString::_remove_item).bind(edit_btn, remove_index));
@@ -1591,6 +1687,7 @@ void EditorPropertyLocalizableString::update_property() {
 
 		if (page_index == max_page) {
 			button_add_item = EditorInspector::create_inspector_action_button(TTR("Add Translation"));
+			button_add_item->set_accessibility_name(TTRC("Add Translation"));
 			button_add_item->set_button_icon(get_editor_theme_icon(SNAME("Add")));
 			button_add_item->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyLocalizableString::_add_locale_popup));
 			property_vbox->add_child(button_add_item);
@@ -1614,8 +1711,7 @@ void EditorPropertyLocalizableString::_object_id_selected(const StringName &p_pr
 
 void EditorPropertyLocalizableString::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_THEME_CHANGED:
-		case NOTIFICATION_ENTER_TREE: {
+		case NOTIFICATION_THEME_CHANGED: {
 			if (button_add_item) {
 				button_add_item->set_button_icon(get_editor_theme_icon(SNAME("Add")));
 			}
@@ -1647,6 +1743,7 @@ EditorPropertyLocalizableString::EditorPropertyLocalizableString() {
 	page_length = int(EDITOR_GET("interface/inspector/max_array_dictionary_items_per_page"));
 
 	edit = memnew(Button);
+	edit->set_accessibility_name(TTRC("Edit"));
 	edit->set_h_size_flags(SIZE_EXPAND_FILL);
 	edit->set_clip_text(true);
 	edit->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyLocalizableString::_edit_pressed));
