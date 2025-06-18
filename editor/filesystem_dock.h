@@ -129,6 +129,7 @@ private:
 		FILE_MENU_NEW_FOLDER,
 		FILE_MENU_NEW_SCRIPT,
 		FILE_MENU_NEW_SCENE,
+		FILE_MENU_RUN_SCRIPT,
 		FILE_MENU_MAX,
 		// Extra shortcuts that don't exist in the menu.
 		EXTRA_FOCUS_PATH,
@@ -202,6 +203,7 @@ private:
 	CreateDialog *new_resource_dialog = nullptr;
 
 	bool always_show_folders = false;
+	int thumbnail_size_setting = 0;
 
 	bool editor_is_dark_theme = false;
 
@@ -254,7 +256,7 @@ private:
 	Ref<Texture2D> _get_tree_item_icon(bool p_is_valid, const String &p_file_type, const String &p_icon_path);
 	void _create_tree(TreeItem *p_parent, EditorFileSystemDirectory *p_dir, Vector<String> &uncollapsed_paths, bool p_select_in_favorites, bool p_unfold_path = false);
 	void _update_tree(const Vector<String> &p_uncollapsed_paths = Vector<String>(), bool p_uncollapse_root = false, bool p_scroll_to_selected = true);
-	void _navigate_to_path(const String &p_path, bool p_select_in_favorites = false);
+	void _navigate_to_path(const String &p_path, bool p_select_in_favorites = false, bool p_grab_focus = false);
 	bool _update_filtered_items(TreeItem *p_tree_item = nullptr);
 
 	void _file_list_gui_input(Ref<InputEvent> p_event);
@@ -380,6 +382,8 @@ public:
 	static constexpr double ITEM_ALPHA_MIN = 0.1;
 	static constexpr double ITEM_ALPHA_MAX = 0.15;
 	static constexpr double ITEM_BG_DARK_SCALE = 0.3;
+
+	static Color get_dir_icon_color(const String &p_dir_path, const Color &p_default);
 
 	const HashMap<String, Color> &get_folder_colors() const;
 	Dictionary get_assigned_folder_colors() const;
