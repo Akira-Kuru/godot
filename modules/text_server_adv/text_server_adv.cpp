@@ -434,7 +434,7 @@ bool TextServerAdvanced::_has(const RID &p_rid) {
 bool TextServerAdvanced::_load_support_data(const String &p_filename) {
 	_THREAD_SAFE_METHOD_
 
-#ifdef ICU_STATIC_DATA
+#if defined(ICU_STATIC_DATA) || !defined(HAVE_ICU_BUILTIN)
 	if (!icu_data_loaded) {
 		UErrorCode err = U_ZERO_ERROR;
 		u_init(&err); // Do not check for errors, since we only load part of the data.
@@ -2718,6 +2718,25 @@ void TextServerAdvanced::_font_set_variation_coordinates(const RID &p_font_rid, 
 	}
 }
 
+double TextServerAdvanced::_font_get_oversampling(const RID &p_font_rid) const {
+	FontAdvanced *fd = _get_font_data(p_font_rid);
+	ERR_FAIL_NULL_V(fd, -1.0);
+
+	MutexLock lock(fd->mutex);
+	return fd->oversampling_override;
+}
+
+void TextServerAdvanced::_font_set_oversampling(const RID &p_font_rid, double p_oversampling) {
+	FontAdvanced *fd = _get_font_data(p_font_rid);
+	ERR_FAIL_NULL(fd);
+
+	MutexLock lock(fd->mutex);
+	if (fd->oversampling_override != p_oversampling) {
+		_font_clear_cache(fd);
+		fd->oversampling_override = p_oversampling;
+	}
+}
+
 Dictionary TextServerAdvanced::_font_get_variation_coordinates(const RID &p_font_rid) const {
 	FontAdvanced *fd = _get_font_data(p_font_rid);
 	ERR_FAIL_NULL_V(fd, Dictionary());
@@ -3902,7 +3921,9 @@ void TextServerAdvanced::_font_draw_glyph(const RID &p_font_rid, const RID &p_ca
 	bool viewport_oversampling = false;
 	float oversampling_factor = p_oversampling;
 	if (p_oversampling <= 0.0) {
-		if (vp_oversampling > 0.0) {
+		if (fd->oversampling_override > 0.0) {
+			oversampling_factor = fd->oversampling_override;
+		} else if (vp_oversampling > 0.0) {
 			oversampling_factor = vp_oversampling;
 			viewport_oversampling = true;
 		} else {
@@ -4046,7 +4067,9 @@ void TextServerAdvanced::_font_draw_glyph_outline(const RID &p_font_rid, const R
 	bool viewport_oversampling = false;
 	float oversampling_factor = p_oversampling;
 	if (p_oversampling <= 0.0) {
-		if (vp_oversampling > 0.0) {
+		if (fd->oversampling_override > 0.0) {
+			oversampling_factor = fd->oversampling_override;
+		} else if (vp_oversampling > 0.0) {
 			oversampling_factor = vp_oversampling;
 			viewport_oversampling = true;
 		} else {
@@ -5259,6 +5282,28 @@ bool TextServerAdvanced::_shape_substr(ShapedTextDataAdvanced *p_new_sd, const S
 						}
 						if (gl.end == p_start + p_length && ((gl.flags & GRAPHEME_IS_SOFT_HYPHEN) == GRAPHEME_IS_SOFT_HYPHEN)) {
 							uint32_t index = font_get_glyph_index(gl.font_rid, gl.font_size, 0x00ad, 0);
+							if (index == 0) { // Try other fonts in the span.
+								const ShapedTextDataAdvanced::Span &span = p_sd->spans[gl.span_index + p_new_sd->first_span];
+								for (int k = 0; k < span.fonts.size(); k++) {
+									if (span.fonts[k] != gl.font_rid) {
+										index = font_get_glyph_index(span.fonts[k], gl.font_size, 0x00ad, 0);
+										if (index != 0) {
+											gl.font_rid = span.fonts[k];
+											break;
+										}
+									}
+								}
+							}
+							if (index == 0 && gl.font_rid.is_valid() && OS::get_singleton()->has_feature("system_fonts") && _font_is_allow_system_fallback(gl.font_rid)) { // Try system font fallback.
+								const char32_t u32str[] = { 0x00ad, 0 };
+								RID rid = const_cast<TextServerAdvanced *>(this)->_find_sys_font_for_text(gl.font_rid, String(), String(), u32str);
+								if (rid.is_valid()) {
+									index = font_get_glyph_index(rid, gl.font_size, 0x00ad, 0);
+									if (index != 0) {
+										gl.font_rid = rid;
+									}
+								}
+							}
 							float w = font_get_glyph_advance(gl.font_rid, gl.font_size, index)[(p_new_sd->orientation == ORIENTATION_HORIZONTAL) ? 0 : 1];
 							gl.index = index;
 							gl.advance = w;
