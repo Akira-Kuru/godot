@@ -30,9 +30,13 @@
 
 #include "label.h"
 
-#include "scene/gui/container.h"
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
+#include "scene/main/scene_tree.h"
 #include "scene/theme/theme_db.h"
-#include "servers/text_server.h"
+#include "servers/display/accessibility_server.h"
+#include "servers/rendering/rendering_server.h"
+#include "servers/text/text_server.h"
 
 void Label::set_autowrap_mode(TextServer::AutowrapMode p_mode) {
 	if (autowrap_mode == p_mode) {
@@ -136,8 +140,24 @@ int Label::get_line_height(int p_line) const {
 }
 
 void Label::_shape() const {
+	const String &lang = language.is_empty() ? _get_locale() : language;
+
 	Ref<StyleBox> style = theme_cache.normal_style;
 	int width = (get_size().width - style->get_minimum_size().width);
+	float combined_maximum_width = get_combined_maximum_size().x;
+	bool wrap_with_max_width = autowrap_mode != TextServer::AUTOWRAP_OFF && combined_maximum_width > 0;
+	int maximum_width = -1;
+	if (wrap_with_max_width) {
+		maximum_width = int(combined_maximum_width - style->get_minimum_size().width);
+		if (maximum_width <= 0) {
+			maximum_width = 1;
+		}
+		if (width > 0) {
+			width = MIN(width, maximum_width);
+		} else {
+			width = maximum_width;
+		}
+	}
 
 	if (text_dirty) {
 		for (Paragraph &para : paragraphs) {
@@ -149,7 +169,7 @@ void Label::_shape() const {
 		}
 		paragraphs.clear();
 
-		String txt = (uppercase) ? TS->string_to_upper(xl_text, language) : xl_text;
+		String txt = (uppercase) ? TS->string_to_upper(xl_text, lang) : xl_text;
 		if (visible_chars >= 0 && visible_chars_behavior == TextServer::VC_CHARS_BEFORE_SHAPING) {
 			txt = txt.substr(0, visible_chars);
 		}
@@ -159,7 +179,7 @@ void Label::_shape() const {
 		for (const String &str : para_text) {
 			Paragraph para;
 			para.text_rid = TS->create_shaped_text();
-			para.text = str;
+			para.text = str + String::chr(0x200B);
 			para.start = start;
 			start += str.length() + ps.length();
 			paragraphs.push_back(para);
@@ -183,7 +203,7 @@ void Label::_shape() const {
 			ERR_FAIL_COND(font.is_null());
 
 			if (para.dirty) {
-				TS->shaped_text_add_string(para.text_rid, para.text, font->get_rids(), font_size, font->get_opentype_features(), language);
+				TS->shaped_text_add_string(para.text_rid, para.text, font->get_rids(), font_size, font->get_opentype_features(), lang);
 			} else {
 				int spans = TS->shaped_get_span_count(para.text_rid);
 				for (int i = 0; i < spans; i++) {
@@ -243,7 +263,7 @@ void Label::_shape() const {
 	bool lines_hidden = visible_lines > 0 && visible_lines < total_line_count;
 
 	int line_index = 0;
-	if (autowrap_mode == TextServer::AUTOWRAP_OFF) {
+	if (autowrap_mode == TextServer::AUTOWRAP_OFF || wrap_with_max_width) {
 		minsize.width = 0.0f;
 	}
 	for (Paragraph &para : paragraphs) {
@@ -253,41 +273,12 @@ void Label::_shape() const {
 					minsize.width = TS->shaped_text_get_size(line_rid).x;
 				}
 			}
+		} else if (wrap_with_max_width) {
+			minsize.width = MAX(minsize.width, TS->shaped_text_get_size(para.text_rid).x);
 		}
 
 		if (para.lines_dirty) {
-			BitField<TextServer::TextOverrunFlag> overrun_flags = TextServer::OVERRUN_NO_TRIM;
-			switch (overrun_behavior) {
-				case TextServer::OVERRUN_TRIM_WORD_ELLIPSIS_FORCE: {
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM_WORD_ONLY);
-					overrun_flags.set_flag(TextServer::OVERRUN_ADD_ELLIPSIS);
-					overrun_flags.set_flag(TextServer::OVERRUN_ENFORCE_ELLIPSIS);
-				} break;
-				case TextServer::OVERRUN_TRIM_ELLIPSIS_FORCE: {
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
-					overrun_flags.set_flag(TextServer::OVERRUN_ADD_ELLIPSIS);
-					overrun_flags.set_flag(TextServer::OVERRUN_ENFORCE_ELLIPSIS);
-				} break;
-				case TextServer::OVERRUN_TRIM_WORD_ELLIPSIS:
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM_WORD_ONLY);
-					overrun_flags.set_flag(TextServer::OVERRUN_ADD_ELLIPSIS);
-					break;
-				case TextServer::OVERRUN_TRIM_ELLIPSIS:
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
-					overrun_flags.set_flag(TextServer::OVERRUN_ADD_ELLIPSIS);
-					break;
-				case TextServer::OVERRUN_TRIM_WORD:
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM_WORD_ONLY);
-					break;
-				case TextServer::OVERRUN_TRIM_CHAR:
-					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
-					break;
-				case TextServer::OVERRUN_NO_TRIMMING:
-					break;
-			}
+			BitField<TextServer::TextOverrunFlag> overrun_flags = TextServer::get_overrun_flags_from_behavior(overrun_behavior);
 
 			// Fill after min_size calculation.
 
@@ -362,6 +353,9 @@ void Label::_shape() const {
 			para.lines_dirty = false;
 		}
 		line_index += para.lines_rid.size();
+	}
+	if (wrap_with_max_width && maximum_width > 0) {
+		minsize.width = MIN(minsize.width, maximum_width);
 	}
 
 	_update_visible();
@@ -655,12 +649,8 @@ PackedStringArray Label::get_configuration_warnings() const {
 	// but for now we have to warn about this impossible to resolve combination.
 	// See GH-83546.
 	if (is_inside_tree() && get_tree()->get_edited_scene_root() != this) {
-		// If the Label happens to be the root node of the edited scene, we don't need
-		// to check what its parent is. It's going to be some node from the editor tree
-		// and it can be a container, but that makes no difference to the user.
-		Container *parent_container = Object::cast_to<Container>(get_parent_control());
-		if (parent_container && autowrap_mode != TextServer::AUTOWRAP_OFF && get_custom_minimum_size() == Size2()) {
-			warnings.push_back(RTR("Labels with autowrapping enabled must have a custom minimum size configured to work correctly inside a container."));
+		if (autowrap_mode != TextServer::AUTOWRAP_OFF && get_combined_maximum_size().width <= 0) {
+			warnings.push_back(RTR("Labels with autowrapping enabled must have a positive custom maximum width configured to work correctly."));
 		}
 	}
 
@@ -680,11 +670,48 @@ PackedStringArray Label::get_configuration_warnings() const {
 			const Glyph *glyph = TS->shaped_text_get_glyphs(para.text_rid);
 			int64_t glyph_count = TS->shaped_text_get_glyph_count(para.text_rid);
 			for (int64_t i = 0; i < glyph_count; i++) {
-				if (glyph[i].font_rid == RID()) {
+				if (glyph[i].font_rid == RID() && glyph[i].index != 0) {
 					warnings.push_back(RTR("The current font does not support rendering one or more characters used in this Label's text."));
 					break;
 				}
 			}
+		}
+	}
+
+	Ref<FontFile> ff = font;
+	if (ff.is_valid() && ff->is_multichannel_signed_distance_field()) {
+		bool has_settings = settings.is_valid();
+		int font_size = settings.is_valid() ? settings->get_font_size() : theme_cache.font_size;
+		int outline_size = has_settings ? settings->get_outline_size() : theme_cache.font_outline_size;
+		Vector<LabelSettings::StackedOutlineData> stacked_outline_datas = has_settings ? settings->get_stacked_outline_data() : Vector<LabelSettings::StackedOutlineData>();
+		Vector<LabelSettings::StackedShadowData> stacked_shadow_datas = has_settings ? settings->get_stacked_shadow_data() : Vector<LabelSettings::StackedShadowData>();
+		int max_outline_draw_size = outline_size;
+		if (stacked_outline_datas.size() != 0) {
+			int draw_iterations = stacked_outline_datas.size();
+			for (int j = 0; j < draw_iterations; j++) {
+				int stacked_outline_size = stacked_outline_datas[j].size;
+				if (stacked_outline_size <= 0) {
+					continue;
+				}
+				max_outline_draw_size += stacked_outline_size;
+			}
+		}
+		if (stacked_shadow_datas.size() != 0) {
+			int draw_iterations = stacked_shadow_datas.size();
+			for (int j = 0; j < draw_iterations; j++) {
+				LabelSettings::StackedShadowData stacked_shadow_data = stacked_shadow_datas[j];
+				if (stacked_shadow_data.outline_size > 0) {
+					max_outline_draw_size = MAX(max_outline_draw_size, stacked_shadow_data.outline_size);
+				}
+			}
+		}
+		float scale = (float)font_size / (float)ff->get_msdf_size();
+		float ol = (float)max_outline_draw_size / scale / 4.0;
+		float pxr = (float)ff->get_msdf_pixel_range() / 2.0 - 1.0;
+		float r_pxr = (ol + 1.0) * 2.0;
+
+		if (ol > pxr) {
+			warnings.push_back(vformat(RTR("MSDF font pixel range is too small, some outlines/shadows will not render. Set MSDF pixel range to be at least %d to render all outlines/shadows."), Math::ceil(r_pxr)));
 		}
 	}
 
@@ -697,21 +724,20 @@ void Label::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			DisplayServer::get_singleton()->accessibility_update_set_role(ae, DisplayServer::AccessibilityRole::ROLE_STATIC_TEXT);
-			DisplayServer::get_singleton()->accessibility_update_set_value(ae, xl_text);
-			DisplayServer::get_singleton()->accessibility_update_set_text_align(ae, horizontal_alignment);
+			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_STATIC_TEXT);
+			AccessibilityServer::get_singleton()->update_set_value(ae, xl_text);
+			AccessibilityServer::get_singleton()->update_set_text_align(ae, horizontal_alignment);
 		} break;
 
 		case NOTIFICATION_TRANSLATION_CHANGED: {
-			String new_text = atr(text);
-			if (new_text == xl_text) {
-				return; // Nothing new.
+			const String new_text = atr(text);
+			if (new_text != xl_text) {
+				xl_text = new_text;
+				if (visible_ratio < 1) {
+					visible_chars = get_total_character_count() * visible_ratio;
+				}
 			}
-			xl_text = new_text;
-			if (visible_ratio < 1) {
-				visible_chars = get_total_character_count() * visible_ratio;
-			}
-			text_dirty = true;
+			text_dirty = true; // Language update might change the appearance of some characters.
 
 			queue_accessibility_update();
 			queue_redraw();
@@ -762,7 +788,7 @@ void Label::_notification(int p_what) {
 			Vector<LabelSettings::StackedShadowData> stacked_shadow_datas = has_settings ? settings->get_stacked_shadow_data() : Vector<LabelSettings::StackedShadowData>();
 			bool rtl_layout = is_layout_rtl();
 
-			if (has_focus()) {
+			if (has_focus(true)) {
 				theme_cache.focus_style->draw(ci, Rect2(Point2(0, 0), get_size()));
 			} else {
 				theme_cache.normal_style->draw(ci, Rect2(Point2(0, 0), get_size()));
@@ -888,6 +914,7 @@ void Label::_notification(int p_what) {
 		case NOTIFICATION_THEME_CHANGED: {
 			font_dirty = true;
 			queue_redraw();
+			update_configuration_warnings();
 		} break;
 
 		case NOTIFICATION_RESIZED: {
@@ -966,6 +993,9 @@ Size2 Label::get_minimum_size() const {
 	_ensure_shaped();
 
 	Size2 min_size = minsize;
+	Size2 combined_maximum_size = get_combined_maximum_size();
+	bool wrap_with_max_width = autowrap_mode != TextServer::AUTOWRAP_OFF && combined_maximum_size.x > 0;
+	bool overrun_with_max_width = autowrap_mode == TextServer::AUTOWRAP_OFF && combined_maximum_size.x > 0 && (clip || overrun_behavior != TextServer::OVERRUN_NO_TRIMMING);
 
 	const Ref<Font> &font = (settings.is_valid() && settings->get_font().is_valid()) ? settings->get_font() : theme_cache.font;
 	int font_size = settings.is_valid() ? settings->get_font_size() : theme_cache.font_size;
@@ -974,12 +1004,31 @@ Size2 Label::get_minimum_size() const {
 
 	Size2 min_style = theme_cache.normal_style->get_minimum_size();
 	if (autowrap_mode != TextServer::AUTOWRAP_OFF) {
-		return Size2(1, (clip || overrun_behavior != TextServer::OVERRUN_NO_TRIMMING) ? 1 : min_size.height) + min_style;
+		if (!clip && overrun_behavior != TextServer::OVERRUN_NO_TRIMMING && max_lines_visible > 0) {
+			int line_spacing = settings.is_valid() ? settings->get_line_spacing() : theme_cache.line_spacing;
+			min_size.height = MIN(min_size.height, (font->get_height(font_size) + line_spacing) * max_lines_visible);
+		} else if (clip || overrun_behavior != TextServer::OVERRUN_NO_TRIMMING) {
+			min_size.height = 1;
+		}
+		if (wrap_with_max_width) {
+			min_size.width = MAX(1, min_size.width);
+			return min_size + min_style;
+		} else {
+			return Size2(1, min_size.height) + min_style;
+		}
 	} else {
 		if (clip || overrun_behavior != TextServer::OVERRUN_NO_TRIMMING) {
-			min_size.width = 1;
+			if (overrun_with_max_width) {
+				min_size.width = MAX(1, min_size.width);
+			} else {
+				min_size.width = 1;
+			}
 		}
-		return min_size + min_style;
+		Size2 computed_min_size = min_size + min_style;
+		if (overrun_with_max_width) {
+			computed_min_size.width = MIN(computed_min_size.width, combined_maximum_size.x);
+		}
+		return computed_min_size;
 	}
 }
 
@@ -1101,6 +1150,20 @@ void Label::set_text(const String &p_string) {
 void Label::_invalidate() {
 	font_dirty = true;
 	queue_redraw();
+	update_configuration_warnings();
+}
+
+void Label::_maximum_size_changed() {
+	if (autowrap_mode == TextServer::AUTOWRAP_OFF && overrun_behavior == TextServer::OVERRUN_NO_TRIMMING) {
+		return;
+	}
+
+	for (Paragraph &para : paragraphs) {
+		para.lines_dirty = true;
+	}
+	queue_redraw();
+	update_minimum_size();
+	update_configuration_warnings();
 }
 
 void Label::set_label_settings(const Ref<LabelSettings> &p_settings) {
@@ -1113,6 +1176,7 @@ void Label::set_label_settings(const Ref<LabelSettings> &p_settings) {
 			settings->connect_changed(callable_mp(this, &Label::_invalidate), CONNECT_REFERENCE_COUNTED);
 		}
 		_invalidate();
+		update_configuration_warnings();
 	}
 }
 
@@ -1145,12 +1209,12 @@ TextServer::StructuredTextParser Label::get_structured_text_bidi_override() cons
 	return st_parser;
 }
 
-void Label::set_structured_text_bidi_override_options(Array p_args) {
+void Label::set_structured_text_bidi_override_options(const Array &p_args) {
 	if (st_args == p_args) {
 		return;
 	}
 
-	st_args = p_args;
+	st_args = Array(p_args);
 	for (Paragraph &para : paragraphs) {
 		para.dirty = true;
 	}
@@ -1158,7 +1222,7 @@ void Label::set_structured_text_bidi_override_options(Array p_args) {
 }
 
 Array Label::get_structured_text_bidi_override_options() const {
-	return st_args;
+	return Array(st_args);
 }
 
 Control::TextDirection Label::get_text_direction() const {
@@ -1413,7 +1477,7 @@ void Label::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_character_bounds", "pos"), &Label::get_character_bounds);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "text", PROPERTY_HINT_MULTILINE_TEXT), "set_text", "get_text");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "label_settings", PROPERTY_HINT_RESOURCE_TYPE, "LabelSettings"), "set_label_settings", "get_label_settings");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "label_settings", PROPERTY_HINT_RESOURCE_TYPE, LabelSettings::get_class_static()), "set_label_settings", "get_label_settings");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "horizontal_alignment", PROPERTY_HINT_ENUM, "Left,Center,Right,Fill"), "set_horizontal_alignment", "get_horizontal_alignment");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "vertical_alignment", PROPERTY_HINT_ENUM, "Top,Center,Bottom,Fill"), "set_vertical_alignment", "get_vertical_alignment");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "autowrap_mode", PROPERTY_HINT_ENUM, "Off,Arbitrary,Word,Word (Smart)"), "set_autowrap_mode", "get_autowrap_mode");
@@ -1458,6 +1522,8 @@ void Label::_bind_methods() {
 }
 
 Label::Label(const String &p_text) {
+	connect(SceneStringName(maximum_size_changed), callable_mp(this, &Label::_maximum_size_changed));
+
 	set_mouse_filter(MOUSE_FILTER_IGNORE);
 	set_text(p_text);
 	set_v_size_flags(SIZE_SHRINK_CENTER);
