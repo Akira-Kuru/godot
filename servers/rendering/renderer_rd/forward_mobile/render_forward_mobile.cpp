@@ -1018,8 +1018,10 @@ void RenderForwardMobile::_render_scene(RenderDataRD *p_render_data, const Color
 		ERR_FAIL(); //bug?
 	}
 
-	// Set subsampled images as not allowed on this render target, if we are using incompatible rendering features.
-	texture_storage->render_target_set_subsampled_allowed(render_target, using_subpass_post_process);
+	if (render_target.is_valid()) {
+		// Set subsampled images as not allowed on this render target, if we are using incompatible rendering features.
+		texture_storage->render_target_set_subsampled_allowed(render_target, using_subpass_post_process);
+	}
 
 	if (p_render_data->scene_data->view_count > 1) {
 		global_pipeline_data_required.use_multiview = true;
@@ -2006,7 +2008,7 @@ void RenderForwardMobile::_update_render_base_uniform_set() {
 
 				ltc.lut1_texture = RS::get_singleton()->texture_2d_create(lut1_image);
 
-				int lut2_bytes = 3 * dimensions * dimensions;
+				int lut2_bytes = 4 * dimensions * dimensions;
 				size_t lut2_size = lut2_bytes * 4;
 
 				Ref<Image> lut2_image;
@@ -2014,7 +2016,7 @@ void RenderForwardMobile::_update_render_base_uniform_set() {
 				lut2_data.resize(lut2_size);
 
 				memcpy(lut2_data.ptrw(), LTC_LUT2, lut2_size);
-				lut2_image = Image::create_from_data(dimensions, dimensions, false, Image::FORMAT_RGBF, lut2_data);
+				lut2_image = Image::create_from_data(dimensions, dimensions, false, Image::FORMAT_RGBAF, lut2_data);
 
 				ltc.lut2_texture = RS::get_singleton()->texture_2d_create(lut2_image);
 			}
